@@ -11,6 +11,6 @@
 ## 公务链接
 
  - [E-Mail](mailto:shiy2008@gmail.com)
- - [![开源中国社区](http://www.oschina.net/img/logo.svg?date=20160803 "开源中国社区")](http://my.oschina.net/TechQuery)
+ - [![开源中国社区](//www.oschina.net/img/logo.svg?date=20160803 "开源中国社区")](http://my.oschina.net/TechQuery)
  - [![SegmentFault](https://sf-static.b0.upaiyun.com/v-57c64471/global/img/logo-b.svg "SegmentFault")](https://segmentfault.com/u/tech_query)
  - [![GitHub](https://developer.github.com/assets/images/logo_developer.png "GitHub")](https://github.com/TechQuery?period=monthly)
