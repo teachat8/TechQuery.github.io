@@ -1,0 +1,23 @@
+[
+    {
+        "title":    "$('.Tech')",
+        "href":     "#"
+    },
+    {
+        "title":    "关于我",
+        "href":     "#!ReadMe.md"
+    },
+    {
+        "title":     "技术札记",
+        "target":    "_blank",
+        "href":      "http://my.oschina.net/TechQuery/blog"
+    },
+    {
+        "title":    "好书推荐",
+        "href":     "#!markdown/book.md"
+    },
+    {
+        "title":    "开源项目",
+        "href":     "#!html/project.html"
+    }
+]
