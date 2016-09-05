@@ -1,5 +1,5 @@
 body > .Head > .Grid-Row > div,
-body > .Head > .NavBar > li {
+body > .Head > .NavBar > li > a {
     padding:    1em  2em;
 }
 body > .Head > .NavBar {
@@ -8,13 +8,6 @@ body > .Head > .NavBar {
     width:         100%;
 }
 
-body > .Head > .NavBar > li {
-    border-top:       4px  solid   transparent;
-    border-bottom:    4px  solid   transparent;
-}
-body > .Head > .NavBar > li:hover {
-    border-bottom-color:    rgb(245, 80, 80);
-}
 body > .Head > .NavBar > li:first-child {
     width:       0;
     padding:     0;
@@ -26,10 +19,12 @@ body > .Head > .NavBar > li.focus:first-child {
     padding:    1em  2em;
     opacity:    1;
 }
-
-
-body > .PC_Narrow ul a > img {
-    max-width:    10em;
+body > .Head > .NavBar > li > a {
+    border-top:       4px  solid   transparent;
+    border-bottom:    4px  solid   transparent;
+}
+body > .Head > .NavBar > li > a:hover {
+    border-bottom-color:    rgb(245, 80, 80);
 }
 
 
@@ -46,4 +41,9 @@ body > .Foot {
 }
 body > .Foot > * {
     padding:    2em;
+}
+
+
+body > .PC_Narrow ul a > img {
+    max-width:    10em;
 }

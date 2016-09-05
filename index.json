@@ -4,8 +4,9 @@
         "href":     "#"
     },
     {
-        "title":    "关于我",
-        "href":     "#!ReadMe.md"
+        "title":        "关于我",
+        "href":         "#!ReadMe.md",
+        "autofocus":    true
     },
     {
         "title":     "技术札记",
