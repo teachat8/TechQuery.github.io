@@ -1,9 +1,9 @@
 define(['jquery', 'marked', 'EasyWebUI', 'EasyWebApp'],  function ($, marked) {
 
     $.ajaxSetup({
-        dataFilter:    function () {
+        dataFilter:    function (iText) {
             return  ($.fileName( this.url ).match(/\.(md|markdown)$/i))  ?
-                marked( arguments[0] )  :  arguments[0];
+                marked( iText )  :  iText;
         }
     });
 

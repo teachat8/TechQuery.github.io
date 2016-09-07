@@ -773,7 +773,6 @@ ul.NavBar {
 }
 ul.NavBar > li {
     display:           inline-block;
-    padding:           0.5em;
     text-align:        center;
     vertical-align:    middle;
     cursor:            pointer;
@@ -788,6 +787,9 @@ ul.NavBar > li > a {
     display:    block;
     width:      100%;
     outline:    none;
+}
+ul.NavBar > li:empty,  ul.NavBar > li > a  {
+    padding:    0.5em;
 }
 ul.NavBar.visible > li:nth-child(n+2) > a {
     border-left:    1px  solid  rgb(200, 200, 200);
