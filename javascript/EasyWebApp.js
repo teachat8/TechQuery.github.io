@@ -10,12 +10,26 @@
 
 var DS_Inherit = (function (BOM, DOM, $) {
 
-    function DataScope(iData) {
-        if (! $.isEmptyObject(iData))  $.extend(this, iData);
+    function DataScope() {
+        this.extend( arguments[0] );
     }
 
     var iPrototype = {
             constructor:    DataScope,
+            extend:         function (iData) {
+                if (! $.isEmptyObject(iData)) {
+                    $.extend(this, iData);
+
+                    if ($.likeArray( iData )) {
+                        this.length = iData.length;
+
+                        Array.prototype.splice.call(
+                            this,  iData.length,  iData.length
+                        );
+                    }
+                }
+                return this;
+            },
             toString:       function () {
                 return  '[object DataScope]';
             },
@@ -136,10 +150,7 @@ var UI_Module = (function (BOM, DOM, $, DS_Inherit) {
         this.ownerApp = iLink.ownerApp;
         this.source = iLink;
 
-        var iScope = iLink.ownerView && iLink.ownerView.getData();
-        iScope = $.likeArray(iScope)  ?  { }  :  iScope;
-
-        this.data = DS_Inherit(iScope || { },  this.getEnv());
+        this.data = DS_Inherit(this.getScope(), this.getEnv());
 
         this.$_View = iLink.getTarget();
         this.$_View = this.$_View[0] ? this.$_View : iLink.$_DOM;
@@ -174,16 +185,19 @@ var UI_Module = (function (BOM, DOM, $, DS_Inherit) {
 
             return this;
         },
-        getData:       function () {
-            var iLV = $.ListView.instanceOf( this.source.$_DOM );
+        getScope:      function () {
+            var iLV = $.ListView.instanceOf( this.source.$_DOM ),  iData;
 
-            if ((! iLV)  ||  (iLV.$_View[0] === this.source.$_DOM[0]))
-                return this.data;
+            if (iLV  &&  (iLV.$_View[0] !== this.source.$_DOM[0])) {
 
-            var $_Item = this.source.$_DOM.parentsUntil( iLV.$_View );
+                var $_Item = this.source.$_DOM.parentsUntil( iLV.$_View );
 
-            return  ($_Item[0] ? $_Item.slice(-1) : this.source.$_DOM)
-                .data('EWA_DS');
+                iData = ($_Item[0] ? $_Item.slice(-1) : this.source.$_DOM)
+                    .data('EWA_DS');
+            }
+            iData = iData  ||  (this.source.ownerView || '').data;
+
+            return  $.likeArray(iData) ? { } : iData;
         },
         getEnv:        function () {
             var iData = { },
@@ -243,10 +257,7 @@ var UI_Module = (function (BOM, DOM, $, DS_Inherit) {
             ));
         },
         loadJSON:      function () {
-            return this.source.loadData(
-                UI_Module.prototype.getData.call(this) ||
-                    UI_Module.instanceOf('body').data
-            );
+            return  this.source.loadData( this.data );
         },
         loadHTML:      function () {
             var iTemplate = this.constructor.$_Template,
@@ -289,27 +300,13 @@ var UI_Module = (function (BOM, DOM, $, DS_Inherit) {
                 iLink.src = _Link_.src;
                 iLink.data = _Link_.data;
 
-                $.extend(_This_.data, _This_.getEnv());
+                _This_.data.extend( _This_.getEnv() );
 
                 return _This_.loadJSON();
             });
         },
-        setData:       function (iData) {
-            if (! $.isEmptyObject(iData)) {
-                $.extend(this.data, iData);
-
-                if ($.likeArray( iData )) {
-                    this.data.length = iData.length;
-
-                    Array.prototype.splice.call(
-                        this.data,  iData.length,  iData.length
-                    );
-                }
-            }
-            return this.data;
-        },
         render:        function (iData) {
-            iData = this.setData(iData);
+            iData = this.data.extend(iData);
 
             if (! $.isEmptyObject(iData))  this.$_View.dataRender(iData);
 
@@ -338,8 +335,10 @@ var UI_Module = (function (BOM, DOM, $, DS_Inherit) {
 
                 _Data_ = _Data_[0] || _Data_[1];
 
-                if ((_Data_ !== undefined)  &&  (_Data_ != null))
-                    _This_.setData(_This_.trigger('data', [_Data_])  ||  _Data_);
+                if (_Data_ != null)
+                    _This_.data.extend(
+                        _This_.trigger('data', [_Data_])  ||  _Data_
+                    );
 
                 return _This_.loadModule();
 
@@ -406,7 +405,7 @@ var InnerLink = (function (BOM, DOM, $, UI_Module) {
             return  this.target  ?  $('*[name="' + this.target + '"]')  :  $();
         },
         getArgs:      function () {
-            var iArgs = { },  iData = this.ownerView.getData();
+            var iArgs = { },  iData = this.ownerView.data;
 
             (this.src || this.action || '').replace(
                 InnerLink.reURLVar,
@@ -578,7 +577,7 @@ var WebApp = (function (BOM, DOM, $, UI_Module, InnerLink) {
 
             var iLink = iModule.source,  _This_ = this;
 
-            $.extend(iModule.data, $.paramJSON());
+            iModule.data.extend( $.paramJSON() );
 
             iModule[
                 (iLink.href || iLink.src || iLink.action)  ?  'load'  :  'render'
@@ -625,7 +624,7 @@ var WebApp = (function (BOM, DOM, $, UI_Module, InnerLink) {
 //                    >>>  EasyWebApp.js  <<<
 //
 //
-//      [Version]    v3.0  (2016-09-06)  Beta
+//      [Version]    v3.0  (2016-09-14)  Beta
 //
 //      [Require]    iQuery  ||  jQuery with jQuery+,
 //
@@ -659,7 +658,8 @@ var EasyWebApp = (function (BOM, DOM, $, WebApp, InnerLink, UI_Module) {
             if (iEvent.type != 'submit')  return;
 
             iEvent.preventDefault();
-        }
+        } else if ( iEvent.isPseudo() )
+            return;
 
         iEvent.stopPropagation();
 
@@ -671,7 +671,7 @@ var EasyWebApp = (function (BOM, DOM, $, WebApp, InnerLink, UI_Module) {
             case '_blank':
                 UI_Module.prototype.loadJSON.call({
                     source:    iLink,
-                    data:      iLink.ownerView.getData()
+                    data:      iLink.ownerView.data
                 }).then(function () {
                     iLink.ownerApp.trigger(
                         'data',  '',  iLink.src || iLink.action,  [
