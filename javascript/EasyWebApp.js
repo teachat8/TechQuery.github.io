@@ -30,6 +30,23 @@ var DS_Inherit = (function (BOM, DOM, $) {
                 }
                 return this;
             },
+            setValue:       function (iName) {
+                var iScope = this,  _Parent_;
+
+                while (! (
+                    $.isEmptyObject(iScope)  ||  iScope.hasOwnProperty(iName)
+                )) {
+                    _Parent_ = Object.getPrototypeOf( iScope );
+
+                    if (_Parent_ === Object.prototype)  break;
+
+                    iScope = _Parent_;
+                }
+
+                iScope[iName] = arguments[1];
+
+                return iScope;
+            },
             toString:       function () {
                 return  '[object DataScope]';
             },
@@ -50,11 +67,15 @@ var DS_Inherit = (function (BOM, DOM, $) {
         };
 
     return  function (iSup, iSub) {
-        DataScope.prototype = $.isEmptyObject(iSup) ? iPrototype : iSup;
+        DataScope.prototype = (iSup instanceof DataScope)  ?
+            iSup  :  $.extend(iSup, iPrototype);
 
         var iData = new DataScope(iSub);
 
-        DataScope.prototype = null;
+        if (! $.browser.modern)
+            iData.__proto__ = DataScope.prototype;
+
+        DataScope.prototype = { };
 
         return iData;
     };
@@ -65,23 +86,25 @@ var DS_Inherit = (function (BOM, DOM, $) {
 
 var ViewDataIO = (function (BOM, DOM, $, DS_Inherit) {
 
-    function ArrayRender(iArray, ValueRender) {
+    function ArrayRender(iArray, ValueRender, iScope) {
+
+        iArray = iScope  ?  DS_Inherit(iScope, iArray)  :  iArray;
 
         $.ListView(this,  function ($_Item, iValue) {
 
             $_Item.data('EWA_DS',  DS_Inherit(iArray, iValue))
                 .value('name', iValue);
 
-            ValueRender.call($_Item, iValue);
+            ValueRender.call($_Item, iValue, iArray);
 
         }).clear().render( iArray );
     }
 
-    function ObjectRender(iData) {
+    function ObjectRender(iData, iScope) {
         var _Self_ = arguments.callee;
 
         if ($.likeArray( iData ))
-            return  ArrayRender.call(this[0], iData, _Self_);
+            return  ArrayRender.call(this[0], iData, _Self_, iScope);
 
         var iView = $.CommonView.instanceOf(this, false);
 
@@ -90,7 +113,7 @@ var ViewDataIO = (function (BOM, DOM, $, DS_Inherit) {
         this.value('name',  function (iName) {
 
             if ($.likeArray( iData[iName] ))
-                ArrayRender.call(this, iData[iName], _Self_);
+                ArrayRender.call(this, iData[iName], _Self_, iData);
             else if ($.isPlainObject( iData[iName] ))
                 _Self_.call($(this), iData[iName]);
             else
@@ -327,6 +350,8 @@ var UI_Module = (function (BOM, DOM, $, DS_Inherit) {
         load:          function () {
             var _This_ = this,
                 iJSON = this.source.getURL('src') || this.source.getURL('action');
+
+            this.lastLoad = 0;
 
             return Promise.all([
                 iJSON  &&  this.loadJSON(),
@@ -624,7 +649,7 @@ var WebApp = (function (BOM, DOM, $, UI_Module, InnerLink) {
 //                    >>>  EasyWebApp.js  <<<
 //
 //
-//      [Version]    v3.0  (2016-09-14)  Beta
+//      [Version]    v3.0  (2016-09-19)  Beta
 //
 //      [Require]    iQuery  ||  jQuery with jQuery+,
 //
@@ -688,8 +713,9 @@ var EasyWebApp = (function (BOM, DOM, $, WebApp, InnerLink, UI_Module) {
         var $_VS = $( arguments[0].target );
 
         UI_Module.instanceOf( $_VS )
-            .data[ $_VS[0].getAttribute('name') ] = $_VS.val();
+            .data.setValue($_VS[0].getAttribute('name'), $_VS.val());
     });
+
 })(self, self.document, self.jQuery, WebApp, InnerLink, UI_Module);
 
 
