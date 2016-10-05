@@ -855,13 +855,33 @@
 
 /* ---------- 滚动悬停  v0.1 ---------- */
 
-    var $_DOM = $(DOM),  Fixed_List = [ ];
+    var $_BOM = $(BOM),  $_DOM = $(DOM);
+
+    var Limit_Map = {
+            width:     'left',
+            height:    'top'
+        },
+        Fixed_List = [ ];
+
+    function getLimit() {
+        var iLimit = { };
+
+        for (var iKey in Limit_Map)
+            iLimit['max-' + iKey] = $_BOM[iKey]()
+                - this.element.offset()[ Limit_Map[iKey] ]
+                - ($_DOM[iKey]() - (
+                    this.offset[ Limit_Map[iKey] ]  +
+                    parseFloat( this.element.css( iKey ) )
+                ));
+
+        return iLimit;
+    }
 
     $_DOM.scroll(function () {
         var iOffset = $_DOM.scrollTop();
 
         for (var i = 0, $_Fixed, $_Shim;  Fixed_List[i];  i++) {
-            $_Fixed = $( Fixed_List[i].element );
+            $_Fixed = Fixed_List[i].element;
 
             if (iOffset < Fixed_List[i].offset.top) {
 
@@ -871,20 +891,23 @@
 
                 Fixed_List[i].callback.call($_Fixed[0], 'static', iOffset);
 
-                $_Shim = $( $_Fixed[0].nextElementSibling );
+                $_Shim = $_Fixed.nextAll(':data("Scroll_Fixed")');
 
-                if (
-                    $_Shim.removeAttr('style')[0].outerHTML ==
-                    $_Fixed.clone(true).removeAttr('style')[0].outerHTML
-                )
+                if ($_Shim.data('Scroll_Fixed') == $_Fixed.data('Scroll_Fixed'))
                     $_Shim.remove();
 
             } else if ($_Fixed.css('position') != 'fixed') {
-                $_Fixed.after( $_Fixed[0].outerHTML ).css({
-                    position:     'fixed',
-                    top:          0,
-                    'z-index':    100
-                });
+
+                $_Shim = $( $_Fixed[0].outerHTML ).css('opacity', 0).insertAfter(
+                    $_Fixed.css({
+                        position:     'fixed',
+                        top:          0,
+                        'z-index':    100
+                    })
+                );
+                $.merge(
+                    $_Shim,  $_Fixed.css(getLimit.call( Fixed_List[i] ))
+                ).data('Scroll_Fixed', $.uuid('SF'));
 
                 Fixed_List[i].callback.call($_Fixed[0], 'fixed', iOffset);
             }
@@ -893,10 +916,12 @@
 
     $.fn.scrollFixed = function (iCallback) {
 
-        $.merge(Fixed_List,  $.map(this,  function (iDOM) {
+        $.merge(Fixed_List,  $.map(this,  function () {
+            var $_Fixed = $( arguments[0] );
+
             return {
-                element:     iDOM,
-                offset:      $(iDOM).offset(),
+                element:     $_Fixed,
+                offset:      $_Fixed.offset(),
                 callback:    iCallback
             };
         }));
@@ -1169,7 +1194,7 @@
 //          >>>  EasyWebUI Component Library  <<<
 //
 //
-//      [Version]     v3.1  (2016-09-13)  Stable
+//      [Version]     v3.1  (2016-10-06)  Stable
 //
 //      [Based on]    iQuery v1  or  jQuery (with jQuery+),
 //

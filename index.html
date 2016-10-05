@@ -24,22 +24,33 @@
                 marked:       '//cdn.bootcss.com/marked/0.3.6/marked.min'
             }
         });
-
-        require(['index']);
     </script>
+    <script src="javascript/index.js"></script>
 </head><body>
     <div class="Head CenterX Black_O">
         <div class="Grid-Row CenterY">
-            <div>
+            <div id="Main_Title">
                 <h1>TechQuery</h1>
-                <p>一头<em>Web 前端攻城狮</em>的部落格</p>
+                <p>
+                    We can change the world, because we control the
+                    <a href="https://movie.douban.com/subject/3075287/">
+                        Source Code
+                    </a>.
+                </p>
             </div>
         </div>
-        <ul class="NavBar Black_O" src="index.json">
-            <li><a name="title"></a></li>
+        <div class="DropDown Head">
+            <ul class="NavBar Black_O" id="Main_Nav" src="index.json">
+                <li><a name="title"></a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="PC_Narrow Grid-Row">
+        <div id="Main_Content"></div>
+        <ul id="Content_Nav" tabindex="-1">
+            <li><a></a></li>
         </ul>
     </div>
-    <div class="PC_Narrow"></div>
     <div class="Foot Black_O Grid-Row CenterX">
         <span>(C)2016  Tech_Query</span>
         <span>
