@@ -88,18 +88,22 @@ body > .Foot > * {
     max-width:    10em;
 }
 #Content_Nav {
-    list-style:    none;
     margin-top:    3.85em;
     padding:       1em;
     overflow:      auto;
 }
-#Content_Nav ul {
+#Content_Nav,  #Content_Nav ul  {
     list-style:    none;
+    outline:       none;
+}
+#Content_Nav ul {
     padding:       1em  0  1em  1em;
 }
-#Content_Nav li {
+#Content_Nav li > a {
+    display:        block;
+    padding:        0.25em  0.5em;
     border-left:    3px  solid  transparent;
 }
-#Content_Nav li.active {
+#Content_Nav li.active > a {
     border-left-color:    blue;
 }

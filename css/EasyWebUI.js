@@ -712,18 +712,22 @@
                 }),
                 _DOM_ = $_Context[0].ownerDocument;
 
-            $_Context.scroll(function () {
-                if (arguments[0].target !== this)  return;
+            ($_Context.is(':scrollable') ?
+                $_Context  :  $_Context.scrollParents().eq(0)
+            ).scroll(function () {
+                if ($.contains($_Context[0], arguments[0].target))  return;
 
                 var iAnchor = $_Context.offset(),
-                    iFontSize = $(_DOM_.body).css('font-size') / 2;
+                    iFontSize = parseFloat($(_DOM_.body).css('font-size')) / 2;
 
                 var $_Anchor = $(_DOM_.elementFromPoint(
-                        iAnchor.left + $_Context.css('padding-left') + iFontSize,
-                        iAnchor.top + $_Context.css('padding-top') + iFontSize
+                        iAnchor.left + iFontSize +
+                            parseFloat( $_Context.css('padding-left') ),
+                        iAnchor.top + iFontSize +
+                            parseFloat( $_Context.css('padding-top') )
                     )).prevAll('h1, h2, h3');
 
-                if (! $.contains(this, $_Anchor[0]))  return;
+                if (! $.contains($_Context[0], $_Anchor[0]))  return;
 
                 $_Anchor = $(
                     'a[href="#' + $_Anchor[0].id + '"]',  iMainNav.$_View[0]
@@ -732,11 +736,12 @@
                     .removeClass('active');
 
                 $.ListView.instanceOf( $_Anchor ).focus( $_Anchor[0].parentNode );
+            });
 
-            }).on('Refresh',  function () {
+            iMainNav.$_View.on('Refresh',  function () {
 
                 iMainNav.clear().render(
-                    toTreeData.call( $('h1, h2, h3', this) )
+                    toTreeData.call( $_Context.find('h1, h2, h3') )
                 );
                 return false;
 
@@ -853,77 +858,91 @@
 
 (function (BOM, DOM, $) {
 
-/* ---------- 滚动悬停  v0.1 ---------- */
+/* ---------- 滚动悬停  v0.2 ---------- */
 
-    var $_BOM = $(BOM),  $_DOM = $(DOM);
+    var $_BOM = $(BOM),  $_DOM = $(DOM),  Fixed_List = [ ];
 
-    var Limit_Map = {
-            width:     'left',
-            height:    'top'
-        },
-        Fixed_List = [ ];
+    function Scroll_Fixed() {
+        this.$_View = $( arguments[0] );
+        this.onChange = arguments[1];
 
-    function getLimit() {
-        var iLimit = { };
-
-        for (var iKey in Limit_Map)
-            iLimit['max-' + iKey] = $_BOM[iKey]()
-                - this.element.offset()[ Limit_Map[iKey] ]
-                - ($_DOM[iKey]() - (
-                    this.offset[ Limit_Map[iKey] ]  +
-                    parseFloat( this.element.css( iKey ) )
-                ));
-
-        return iLimit;
+        this.$_Shim = $( this.$_View[0].outerHTML ).css('opacity', 0);
+        this.offset = this.$_View.offset();
     }
+
+    Scroll_Fixed.limitMap = {
+        width:     ['left', 'Left'],
+        height:    ['top', 'Top']
+    };
+
+    $.extend(Scroll_Fixed.prototype, {
+        getLimit:    function () {
+            var LM = this.constructor.limitMap,  iLimit = { };
+
+            for (var iKey in LM)
+                iLimit['max-' + iKey] = $_BOM[iKey]()
+                    - (
+                        this.$_View.offset()[ LM[iKey][0] ]  -
+                        $_DOM['scroll' + LM[iKey][1]]()
+                    )
+                    - ($_DOM[iKey]() - (
+                        this.offset[ LM[iKey][0] ]  +
+                        parseFloat( this.$_Shim.css( iKey ) )
+                    ));
+
+            return iLimit;
+        },
+        render:      function () {
+            this.$_View.css({
+                position:     'fixed',
+                top:          0,
+                'z-index':    100
+            }).after( this.$_Shim ).css( this.getLimit() );
+
+            if (this.onChange)  this.onChange.call(this.$_View[0], 'fixed');
+
+            return this;
+        },
+        destroy:     function () {
+            this.$_View.css({
+                position:        'static',
+                'max-width':     'auto',
+                'max-height':    'auto'
+            });
+
+            if (this.onChange)  this.onChange.call(this.$_View[0], 'static');
+
+            this.$_Shim.remove();
+
+            return this;
+        },
+        toggleAt:    function (Scroll_Top) {
+            var iPosition = this.$_View.css('position');
+
+            if (Scroll_Top < this.offset.top) {
+
+                if (iPosition != 'static')  this.destroy();
+
+            } else if (iPosition != 'fixed')  this.render();
+
+            return this;
+        }
+    });
 
     $_DOM.scroll(function () {
         var iOffset = $_DOM.scrollTop();
 
-        for (var i = 0, $_Fixed, $_Shim;  Fixed_List[i];  i++) {
-            $_Fixed = Fixed_List[i].element;
-
-            if (iOffset < Fixed_List[i].offset.top) {
-
-                if ($_Fixed.css('position') == 'static')  continue;
-
-                $_Fixed.css('position', 'static');
-
-                Fixed_List[i].callback.call($_Fixed[0], 'static', iOffset);
-
-                $_Shim = $_Fixed.nextAll(':data("Scroll_Fixed")');
-
-                if ($_Shim.data('Scroll_Fixed') == $_Fixed.data('Scroll_Fixed'))
-                    $_Shim.remove();
-
-            } else if ($_Fixed.css('position') != 'fixed') {
-
-                $_Shim = $( $_Fixed[0].outerHTML ).css('opacity', 0).insertAfter(
-                    $_Fixed.css({
-                        position:     'fixed',
-                        top:          0,
-                        'z-index':    100
-                    })
-                );
-                $.merge(
-                    $_Shim,  $_Fixed.css(getLimit.call( Fixed_List[i] ))
-                ).data('Scroll_Fixed', $.uuid('SF'));
-
-                Fixed_List[i].callback.call($_Fixed[0], 'fixed', iOffset);
-            }
-        }
+        for (var i = 0;  Fixed_List[i];  i++)
+            Fixed_List[i].toggleAt( iOffset );
     });
 
     $.fn.scrollFixed = function (iCallback) {
 
-        $.merge(Fixed_List,  $.map(this,  function () {
-            var $_Fixed = $( arguments[0] );
+        iCallback = (typeof iCallback == 'function')  &&  iCallback;
 
-            return {
-                element:     $_Fixed,
-                offset:      $_Fixed.offset(),
-                callback:    iCallback
-            };
+        $.merge(Fixed_List,  $.map(this,  function () {
+
+            return  new Scroll_Fixed(arguments[0], iCallback);
         }));
 
         return this;
@@ -1194,7 +1213,7 @@
 //          >>>  EasyWebUI Component Library  <<<
 //
 //
-//      [Version]     v3.1  (2016-10-06)  Stable
+//      [Version]     v3.2  (2016-10-07)  Stable
 //
 //      [Based on]    iQuery v1  or  jQuery (with jQuery+),
 //

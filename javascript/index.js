@@ -17,7 +17,7 @@ require(['jquery', 'marked', 'EasyWebUI', 'EasyWebApp'],  function ($, marked) {
 
         var $_App = $('#Main_Content');
 
-        $('#Content_Nav').iReadNav( $_App ).scrollFixed( $.noop );
+        var $_ReadNav = $('#Content_Nav').iReadNav( $_App ).scrollFixed();
 
         $_App.iWebApp().on('data',  '',  'index.json',  function (iLink, iData) {
 
@@ -30,7 +30,7 @@ require(['jquery', 'marked', 'EasyWebUI', 'EasyWebApp'],  function ($, marked) {
 
         }).on('ready',  '\\.(html|md)',  function () {
 
-            $_App.trigger('Refresh');
+            $_ReadNav.trigger('Refresh');
         });
     });
 });
