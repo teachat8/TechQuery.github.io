@@ -1,24 +1,34 @@
-[
-    {
-        "title":    "$('.Tech')",
-        "href":     "#"
-    },
-    {
-        "title":        "关于我",
-        "href":         "#!ReadMe.md",
-        "autofocus":    true
-    },
-    {
-        "title":     "技术札记",
-        "target":    "_blank",
-        "href":      "http://my.oschina.net/TechQuery/blog"
-    },
-    {
-        "title":    "好书推荐",
-        "href":     "#!markdown/book.md"
-    },
-    {
-        "title":    "开源项目",
-        "href":     "#!html/project.html"
-    }
-]
+{
+    "Title":          "TechQuery",
+    "Description":    "We can change the world, because we control the <a href=\"https://movie.douban.com/subject/3075287/\">Source Code</a>.",
+    "Main_Nav":       [
+        {
+            "title":    "$('.Tech')",
+            "href":     "#"
+        },
+        {
+            "title":        "关于我",
+            "href":         "#!ReadMe.md",
+            "autofocus":    true
+        },
+        {
+            "title":     "技术札记",
+            "target":    "_blank",
+            "href":      "http://my.oschina.net/TechQuery/blog"
+        },
+        {
+            "title":    "好书推荐",
+            "href":     "#!markdown/book.md"
+        },
+        {
+            "title":    "开源项目",
+            "href":     "#!html/project.html"
+        }
+    ],
+    "Git_API":        "https://api.github.com",
+    "Git_Token":      "5ca02ccfaba1b3baac1fe68e19217195412a8b5d",
+    "Git_Account":    "TechQuery",
+    "Git_Repo":       "TechQuery.github.io",
+    "Git_Branch":     "master",
+    "Root_Path":      "markdown"
+}

@@ -1,4 +1,4 @@
-require(['jquery', 'marked', 'EasyWebUI', 'EasyWebApp'],  function ($, marked) {
+define(['jquery', 'marked', 'EasyWebUI', 'EasyWebApp'],  function ($, marked) {
 
     $.ajaxSetup({
         dataFilter:    function (iText) {
@@ -19,18 +19,23 @@ require(['jquery', 'marked', 'EasyWebUI', 'EasyWebApp'],  function ($, marked) {
 
         var $_ReadNav = $('#Content_Nav').iReadNav( $_App ).scrollFixed();
 
-        $_App.iWebApp().on('data',  '',  'index.json',  function (iLink, iData) {
+        $_App.iWebApp().on('data',  '',  'index.json',  function () {
 
-            $.ListView(iLink.$_DOM,  false,  function ($_Item, iValue) {
-
-                $_Item.children().attr(iValue);
+            $.ajaxSetup({
+                headers:    {
+                    Authorization:    'token ' + arguments[1].Git_Token
+                }
             });
-
-            return iData;
-
         }).on('ready',  '\\.(html|md)',  function () {
 
             $_ReadNav.trigger('Refresh');
+
+        }).on('data',  '',  '/contents/',  function (_, iData) {
+            return {
+                content:    $.map(iData,  function () {
+                    return  (arguments[0].type != 'dir')  ?  null  :  arguments[0];
+                })
+            };
         });
     });
 });

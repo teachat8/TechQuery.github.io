@@ -7,6 +7,8 @@
 
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no,target-densitydpi=medium-dpi">
+
     <title>TechQuery 个人网站 - EWAwiki</title>
 
     <link rel="stylesheet" href="css/EasyWebUI.css" />
@@ -24,24 +26,25 @@
                 marked:       '//cdn.bootcss.com/marked/0.3.6/marked.min'
             }
         });
+
+        require(['index']);
     </script>
-    <script src="javascript/index.js"></script>
-</head><body>
+</head><body src="index.json">
     <div class="Head CenterX Black_O">
         <div class="Grid-Row CenterY">
             <div id="Main_Title">
-                <h1>TechQuery</h1>
-                <p>
-                    We can change the world, because we control the
-                    <a href="https://movie.douban.com/subject/3075287/">
-                        Source Code
-                    </a>.
-                </p>
+                <h1 target="_self" href="html/list.html">
+                    ${this.Title}
+                </h1>
+                <p>${this.Description}</p>
             </div>
         </div>
         <div class="DropDown Head">
-            <ul class="NavBar Black_O" id="Main_Nav" src="index.json">
-                <li><a name="title"></a></li>
+            <ul class="NavBar Black_O" id="Main_Nav" name="Main_Nav">
+                <li><a target="${this.target || '_self'}" href="${this.href}"
+                       autofocus="${this.autofocus}">
+                    ${this.title}
+                </a></li>
             </ul>
         </div>
     </div>
