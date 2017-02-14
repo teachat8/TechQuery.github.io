@@ -1,48 +1,23 @@
+<link target="_blank" src="html/project.json" />
 <style>
-    p > iframe[src] {
-        width:             24em;
-        display:           inline-block;
-        vertical-align:    top;
+    ul {
+        list-style:    none;
+        padding:       0;
+    }
+    ul > li > iframe[src] {
+        width:    24em;
     }
     @media (max-width:  640px) {
-        p > iframe[src] {
+        ul > li > iframe[src] {
             width:    95%;
         }
     }
 </style>
-<h3>JavaScript</h3>
-<p class="CenterX">
-    <iframe frameBorder="0" allowTransparency="true"
-        src="html/Git-OSC_RW.html?repository=Tech_Query/iBookmarkLet&hidden=issue">
-    </iframe>
-    <iframe frameBorder="0" allowTransparency="true"
-        src="html/Git-OSC_RW.html?hidden=issue">
-    </iframe>
-    <iframe frameBorder="0" allowTransparency="true"
-        src="html/Git-OSC_RW.html?repository=Tech_Query/EasyImport.js&hidden=issue">
-    </iframe>
-</p>
-<h3>jQuery</h3>
-<p class="CenterX">
-    <iframe frameBorder="0" allowTransparency="true"
-        src="html/Git-OSC_RW.html?repository=Tech_Query/iQuery&hidden=issue">
-    </iframe>
-    <iframe frameBorder="0" allowTransparency="true"
-        src="html/Git-OSC_RW.html?repository=Tech_Query/EasyWebUI&hidden=issue">
-    </iframe>
-    <iframe frameBorder="0" allowTransparency="true"
-        src="html/Git-OSC_RW.html?repository=Tech_Query/EasyWebApp&hidden=issue">
-    </iframe>
-</p>
-<h3>Web 后端</h3>
-<p class="CenterX">
-    <iframe frameBorder="0" allowTransparency="true"
-        src="html/Git-OSC_RW.html?repository=Tech_Query/EasyLibs.php&hidden=issue">
-    </iframe>
-</p>
-<h3>Web 整站</h3>
-<p class="CenterX">
-    <iframe frameBorder="0" allowTransparency="true"
-        src="html/Git-OSC_RW.html?repository=Tech_Query/EasyWiki&hidden=issue">
-    </iframe>
-</p>
+<ul name="repository"><li>
+    <h3>${this.title}</h3>
+    <ul class="CenterX" name="list"><li class="Item-Box">
+        <iframe frameBorder="0" allowTransparency="true"
+            src="html/Git-OSC_RW.html?hidden=issue${this.name  &&  ('&repository=' + this.account + '/' + this.name)}">
+        </iframe>
+    </li></ul>
+</li></ul>

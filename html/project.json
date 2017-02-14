@@ -1,0 +1,35 @@
+{
+    "account":       "Tech_Query",
+    "repository":    [
+        {
+            "title":    "JavaScript",
+            "list":     [
+                {"name":  "iBookmarkLet"},
+                {"name":  ""},
+                {"name":  "EasyImport.js"}
+            ]
+        },
+        {
+            "title":    "jQuery",
+            "list":     [
+                {"name":  "iQuery"},
+                {"name":  "EasyWebUI"},
+                {"name":  "EasyWebApp"}
+            ]
+        },
+        {
+            "title":    "Web 后端",
+            "list":     [
+                {"name":  "EasyLibs.php"},
+                {"name":  "EasyREST.js"}
+            ]
+        },
+        {
+            "title":    "Web 整站",
+            "list":     [
+                {"name":  "EasyWiki"},
+                {"name":  "xMemory"}
+            ]
+        }
+    ]
+}
