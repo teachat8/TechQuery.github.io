@@ -1,32 +1,6 @@
-define([
+require([
     'jquery', 'marked', 'MediumEditor', 'EasyWebUI', 'EasyWebApp', 'QRcode'
 ],  function ($, marked, MediumEditor) {
-
-    $.ajaxSetup({
-        dataFilter:    function (iData) {
-            var iName = $.fileName( this.url ).split('.');
-
-            switch (iName[1]  &&  (iName.slice(-1)[0] || '').toLowerCase()) {
-                case 'md':          ;
-                case 'markdown':    return  marked( iData );
-                case '':            break;
-                default:            return iData;
-            }
-
-            iData = JSON.parse( iData );
-
-            if ( iData.code )
-                self.alert( iData.message );
-            else {
-                if (this.type.toUpperCase() != 'GET')
-                    self.alert( iData.message );
-
-                iData = iData.data || { };
-            }
-
-            return  JSON.stringify( iData );
-        }
-    });
 
     $(document).ready(function () {
 
@@ -46,21 +20,36 @@ define([
                 new MediumEditor( $_App[0] );
         });
 
-        var $_ReadNav = $('#Content_Nav').iReadNav( $_App ).scrollFixed(),
-            $_Toolkit = $('#Toolkit'),
-            $_QRcode = $('#QRcode > .Body');
+        var $_Toolkit = $('#Toolkit'),  $_QRcode = $('#QRcode > .Body');
 
-        $_App.iWebApp().on('ready',  '(list\\.html|ReadMe\\.md)',  function () {
+        $_App.iWebApp().on({
+            type:    'template',
+            href:    /\.md$/i
+        },  function () {
+
+            return  marked( arguments[1] );
+
+        }).on('data',  function (iEvent, iData) {
+
+            if (iData.code  ||  (iEvent.method.toUpperCase() != 'GET'))
+                self.alert( iData.message );
+
+            return  iData.data || iData;
+        }).on({
+            type:    'ready',
+            href:    /(List\.html|ReadMe\.md)/
+        },  function () {
 
             $_Toolkit.hide();
 
-        }).on('ready',  '(content\\.html|\\.md)',  function () {
-
-            $_ReadNav.trigger('Refresh');
+        }).on({
+            type:    'ready',
+            href:    /(content\.html|\.md)/
+        },  function () {
 
             if (! $.browser.mobile)  $_Toolkit.show();
 
-            var iTitle = this.$_Root.find('h1').text() || '';
+            var iTitle = this.$_View.find('h1').text() || '';
 
             document.title = iTitle + ' - EasyWiki';
 

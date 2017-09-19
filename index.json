@@ -4,11 +4,10 @@
     "Main_Nav":       [
         {
             "title":    "$('.Tech')",
-            "href":     "#"
         },
         {
             "title":        "关于我",
-            "href":         "#!ReadMe.md",
+            "href":         "ReadMe.md",
             "autofocus":    true
         },
         {
@@ -18,11 +17,11 @@
         },
         {
             "title":    "好书推荐",
-            "href":     "#!markdown/book.md"
+            "href":     "markdown/book.md"
         },
         {
             "title":    "开源项目",
-            "href":     "#!html/project.html"
+            "href":     "html/project.html"
         }
     ]
 }
