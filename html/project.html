@@ -1,5 +1,4 @@
-<link target="_blank" src="html/project.json" />
-<style>
+<style disabled>
     ul {
         list-style:    none;
         padding:       0;
@@ -13,11 +12,11 @@
         }
     }
 </style>
-<ul name="repository"><li>
-    <h3>${this.title}</h3>
-    <ul class="CenterX" name="list"><li class="Item-Box">
+<ul data-name="repository"><li>
+    <h3>${view.title}</h3>
+    <ul class="Flow-Box CenterX" data-name="list"><li>
         <iframe frameBorder="0" allowTransparency="true"
-            src="html/Git-OSC_RW.html?hidden=issue${this.name  &&  ('&repository=' + this.account + '/' + this.name)}">
+            src="Git-OSC_RW.html?hidden=issue${view.name  &&  ('&repository=' + view.account + '/' + view.name)}">
         </iframe>
     </li></ul>
 </li></ul>

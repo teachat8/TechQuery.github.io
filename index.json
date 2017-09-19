@@ -3,7 +3,7 @@
     "Description":    "We can change the world, because we control the <a href=\"https://movie.douban.com/subject/3075287/\">Source Code</a>.",
     "Main_Nav":       [
         {
-            "title":    "$('.Tech')",
+            "title":    "$('.Tech')"
         },
         {
             "title":        "关于我",
@@ -21,7 +21,7 @@
         },
         {
             "title":    "开源项目",
-            "href":     "html/project.html"
+            "href":     "html/project.html?data=html/project.json"
         }
     ]
 }
