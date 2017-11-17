@@ -1,32 +1,42 @@
 <link rel="stylesheet" href="loading.css" />
+
 <script>
-require(['jquery', 'EasyWebApp'],  function ($, EWA) {
+    require(['jquery', 'EasyWebApp'],  function ($, EWA) {
 
-    EWA.component(function () {
+        EWA.component(function () {
 
-        var VM = this;
+            var VM = this, fallback;
 
-        var Load_Cover = this.$_View.children('div').on(
-                'transitionend webkitTransitionEnd',  function () {
+            var Load_Cover = this.$_View.children('div').on(
+                    'transitionend webkitTransitionEnd',  hide
+                )[0];
 
-                    if (! VM.count)  this.style.display = 'none';
-                }
-            )[0];
+            function hide() {
 
-        $( document ).on('ajaxSend',  function () {
+                if (! VM.count)  Load_Cover.style.display = 'none';
 
-            if (! VM.count)  Load_Cover.style.display = '';
+                if (fallback != null)  clearTimeout( fallback );
+            }
 
-            VM.count++ ;
+            var duration = parseFloat(
+                    $( Load_Cover ).css('transition-duration')
+                );
 
-        }).on('ajaxSuccess',  function () {
+            $( document ).on('ajaxSend',  function () {
 
-            VM.count-- ;
+                if (! VM.count)  Load_Cover.style.display = '';
+
+                VM.count++ ;
+
+            }).on('ajaxSuccess',  function () {
+
+                if ((VM.count > 0)  &&  (--VM.count === 0))
+                    fallback = $.wait(duration, hide);
+            });
+
+            return  {count: 0};
         });
-
-        return  {count: 0};
     });
-});
 </script>
 
 <div class="loading ${view.count ? 'active' : ''}">
