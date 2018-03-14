@@ -11,17 +11,22 @@
             "autofocus":    true
         },
         {
-            "title":     "技术札记",
-            "target":    "_blank",
-            "href":      "http://my.oschina.net/TechQuery/blog"
-        },
-        {
             "title":    "好书推荐",
             "href":     "markdown/book.md"
         },
         {
             "title":    "开源项目",
             "href":     "html/project.html?data=html/project.json"
+        },
+        {
+            "title":     "技术札记",
+            "target":    "_blank",
+            "href":      "http://my.oschina.net/TechQuery/blog"
+        },
+        {
+            "title":     "技术演讲",
+            "target":    "_blank",
+            "href":      "https://ppt.baomitu.com/usercenter?user_name=%E6%B0%B4%E6%AD%8C"
         }
     ]
 }

@@ -383,17 +383,20 @@ var view_RenderNode = (function ($) {
 
         $.extend(this, {
             ownerNode:       node,
-            name:            node.nodeName,
-            raw:             node.nodeValue,
+            raw:             node.nodeValue || node.value,
             ownerElement:    node.parentNode || node.ownerElement,
             type:            0,
             value:           null
-        }).scan();
+        }).update();
+
+        this.scan();
     }
 
     RenderNode.expression = /\$\{([\s\S]+?)\}/g;
 
-    RenderNode.reference = /(\w+)(?:\.|\[(?:'|")|\()(\w+)?/g;
+    RenderNode.reference = /(\w+)(\.|\[(?:'|")|\()(\w+)?/g;
+
+    RenderNode.rawName = /^(data\-|on)\w+/;
 
     RenderNode.Reference_Mask = {
         view:     1,
@@ -401,7 +404,7 @@ var view_RenderNode = (function ($) {
         scope:    8
     };
 
-    RenderNode.Template_Type = $.makeSet(2, 3, 8);
+    RenderNode.Template_Type = $.makeSet('Attr', 'Text', 'Comment');
 
     function Eval(view, scope, expression) {  'use strict';
         try {
@@ -417,69 +420,92 @@ var view_RenderNode = (function ($) {
         }
     }
 
-    $.extend(RenderNode.prototype, {
-        splice:      Array.prototype.splice,
-        indexOf:     Array.prototype.indexOf,
-        push:        Array.prototype.push,
-        scan:        function () {
+    $.extend(RenderNode.prototype = [ ],  {
+        constructor:    RenderNode,
+        update:         function () {
 
-            var _This_ = this,  node = this.ownerNode;
+            var node = this.ownerNode;
+
+            if (! node)  return;
+
+            var name = node.name;
+
+            this.DOMType = $.Type( node );
+
+            if (this.DOMType !== 'Attr')  return;
+
+            var propKey = $.propFix[ name ]  ||  (
+                    (name in node.ownerElement)  &&  name
+                );
+
+            if ( propKey )
+                this.name = propKey,  this.DOMType = 'Prop';
+            else
+                this.name = name;
+        },
+        add:            function (key) {
+
+            if (key  &&  (this.indexOf( key )  <  0))
+                this.push( key );
+        },
+        clear:          function () {
+
+            var node = this.ownerNode,
+                value = this.raw.replace(RenderNode.expression, '');
+
+            switch ( this.DOMType ) {
+                case 'Text':       ;
+                case 'Comment':    return  (node.nodeValue = value);
+                case 'Attr':       ;
+                case 'Prop':
+                    if (! (
+                        (node.value = value)  ||
+                        node.name.match( RenderNode.rawName )
+                    )) {
+                        this.ownerElement.removeAttribute( node.name );
+
+                        this.ownerNode = null;
+                    }
+            }
+        },
+        scan:           function () {
+
+            var _This_ = this;
 
             this.splice(0, Infinity);    this.type = 0;
 
-            node.nodeValue = this.raw.replace(
+            this.raw = this.raw.replace(
                 RenderNode.expression,  function (_, expression) {
 
                     if (/\w+\s*\([\s\S]*?\)/.test( expression ))
                         _This_.type = _This_.type | 2;
 
                     expression.replace(
-                        RenderNode.reference,  function (_, scope, key) {
+                        RenderNode.reference,  function (_, scope, symbol, key) {
 
-                            var global;
+                            var global = self[ scope ];
 
-                            _This_.type = _This_.type | (
-                                RenderNode.Reference_Mask[ scope ]  ||  (
-                                    (global = self[ scope ])  &&  16
-                                )
-                            );
+                            if ( global )
+                                return  _This_.type = _This_.type | 16;
 
-                            if (
-                                (scope !== 'this')  &&
-                                (! global)  &&
-                                (_This_.indexOf( key )  <  0)
-                            )
-                                _This_.push( key );
+                            if (symbol[0] === '(')  return;
+
+                            _This_.type = _This_.type |
+                                RenderNode.Reference_Mask[ scope ];
+
+                            if (scope !== 'this')  _This_.add( key );
                         }
                     );
 
-                    return '';
+                    return  '${' + expression.trim() + '}';
                 }
             );
 
-            if ( this[0] )  switch ( node.nodeType ) {
-                case 8:    {
-                    this.ownerElement.replaceChild(
-                        node = document.createTextNode( node.nodeValue ),
-                        this.ownerNode
-                    );
-                    this.ownerNode = node,  this.name = node.nodeName;
-
-                    break;
-                }
-                case 2:
-                    if (
-                        (! node.nodeValue)  &&  (
-                            ($.propFix[node.nodeName] || node.nodeName)  in
-                            this.ownerElement
-                        )
-                    )
-                        this.ownerElement.removeAttribute( node.nodeName );
-            }
-
-            return this;
+            if ( this[0] )  this.clear();
         },
-        eval:        function (context, scope) {
+        eval:           function (context, scope) {
+
+            if (this.value === null)  this.update();
 
             var refer,  _This_ = this.ownerElement;
 
@@ -495,40 +521,38 @@ var view_RenderNode = (function ($) {
 
             return  (this.raw == text)  ?  refer  :  text;
         },
-        render:      function (iContext, iScope) {
+        render:         function (context, scope) {
 
-            var iValue = this.eval(iContext, iScope),
-                iNode = this.ownerNode,
-                iParent = this.ownerElement;
+            var value = this.eval(context, scope),
+                node = this.ownerNode,
+                parent = this.ownerElement;
 
-            if (iValue === this.value)  return;
+            if (value === this.value)  return;
 
-            this.value = iValue;
+            this.value = value;
 
-            switch ( iNode.nodeType ) {
-                case 3:    {
-                    if (! (iNode.previousSibling || iNode.nextSibling))
-                        return  iParent.innerHTML = iValue;
+            switch ( this.DOMType ) {
+                case 'Text':    {
+                    if (node.previousSibling || node.nextSibling)
+                        node.nodeValue = value;
+                    else
+                        parent.innerHTML = value;
 
                     break;
                 }
-                case 2:    if (
-                    (this.name != 'style')  &&  (this.name in iParent)
-                ) {
-                    iParent[ this.name ] = (iValue instanceof Function)  ?
-                        iValue.bind( iContext )  :  iValue;
+                case 'Prop':    if (this.name !== 'style') {
 
-                    return;
+                    parent[ this.name ] = (value instanceof Function)  ?
+                        value.bind( context )  :  value;
 
-                } else if (! iNode.ownerElement) {
-                    if ( iValue )
-                        iParent.setAttribute(this.name, iValue);
-
-                    return;
+                    break;
                 }
+                case 'Attr':
+                    if ( node )
+                        node.value = value;
+                    else
+                        parent.setAttribute(this.name, value);
             }
-
-            iNode.nodeValue = iValue;
         },
         /**
          * 生成文本值
@@ -539,7 +563,7 @@ var view_RenderNode = (function ($) {
          *
          * @returns  {string} Text Value of this template
          */
-        toString:    function () {
+        toString:       function () {
 
             return  this.value + '';
         }
@@ -662,7 +686,7 @@ var InnerLink = (function ($, Observer) {
 
             var header;
 
-            var iOption = {
+            var option = {
                     method:         this.method,
                     url:            this.src,
                     beforeSend:     arguments[0],
@@ -676,32 +700,38 @@ var InnerLink = (function ($, Observer) {
                     }
                 };
 
-            if ( this.$_View[0].tagName.match(/^(a|area)$/i) ) {
+            switch ( this.$_View[0].tagName.toLowerCase() ) {
+                case 'form':
+                    option.data = $.paramJSON('?' + this.$_View.serialize());
+                    break;
+                case 'area':    ;
+                case 'a':       {
+                    option.data = $.extend({ }, this.$_View[0].dataset);
 
-                iOption.data = $.extend({ }, this.$_View[0].dataset);
-
-                delete iOption.data.method;
-                delete iOption.data.autofocus;
-
-            } else if (! this.$_View.find('input[type="file"]')[0]) {
-
-                iOption.data = $.paramJSON('?' + this.$_View.serialize());
-
-            } else if (iOption.type != 'GET') {
-
-                iOption.data = new self.FormData( this.$_View[0] );
-
-                iOption.contentType = iOption.processData = false;
+                    delete option.data.method;
+                    delete option.data.autofocus;
+                }
             }
 
-            if ( this.contentType.match(/^application\/json/) ) {
+            switch ( this.contentType.split(';')[0] ) {
 
-                iOption.data = JSON.stringify( iOption.data );
+                case 'multipart/form-data':
 
-                iOption.processData = false;
+                    $.extend(option, {
+                        data:           new self.FormData( this.$_View[0] ),
+                        contentType:    false,
+                        processData:    false
+                    });
+                    break;
+                case 'application/json': {
+
+                    option.data = JSON.stringify( option.data );
+
+                    option.processData = false;
+                }
             }
 
-            return  Promise.resolve( $.ajax( iOption ) ).then(function (data) {
+            return  Promise.resolve( $.ajax( option ) ).then(function (data) {
 
                 return  {head: header,  body: data};
             });
@@ -820,12 +850,13 @@ var view_View = (function ($, Observer, DataScope, RenderNode) {
                 $.Class.call(this, View, ['render']),  $_View,  true
             );
 
+        _This_.setPrivate('base',  base || View.baseOf( _This_.$_View[0] ));
+
         return  (_This_ !== this)  ?
             _This_ :
             this.setPrivate({
                 id:          '',
                 name:        this.$_View[0].dataset.name,
-                base:        base  ||  View.baseOf( this.$_View[0] ),
                 /**
                  * 视图数据作用域
                  *
@@ -850,23 +881,24 @@ var view_View = (function ($, Observer, DataScope, RenderNode) {
         baseOf:    function (box) {
 
             if (box.dataset.href  &&  (box.dataset.href[0] !== '?'))
-                return  $.filePath( box.dataset.href ) + '/';
-
-            return  $.filePath() + '/';
+                return  $.filePath( box.dataset.href );
         },
-        getSub:    function (iDOM, base) {
+        getSub:    function ($_View, scope, base) {
 
-            var is_View = iDOM.getAttribute('is');
+            $_View = $( $_View );
+
+            var is_View = $_View.attr('is');
 
             for (var i = Sub_Class.length - 1;  Sub_Class[i];  i--)
                 if (
                     is_View ?
                         (is_View === Sub_Class[i].name)  :
-                        Sub_Class[i].is( iDOM )
+                        Sub_Class[i].is( $_View[0] )
                 )
                     return  new Sub_Class[i](
-                        iDOM,
-                        (this.instanceOf( iDOM.parentNode )  ||  '').__data__,
+                        $_View,
+                        scope  ||
+                            (this.instanceOf( $_View.parent() )  ||  '').__data__,
                         base
                     );
         },
@@ -1014,8 +1046,7 @@ var view_View = (function ($, Observer, DataScope, RenderNode) {
          * @callback View~parser
          *
          * @this  View
-         * @param {HTMLElement|View} node        A Renderable Object
-         * @param {HTMLElement}      [last_view]
+         * @param {HTMLElement|View} node - A Renderable Object
          */
         /**
          * HTML 树扫描器
@@ -1031,52 +1062,53 @@ var view_View = (function ($, Observer, DataScope, RenderNode) {
          */
         scan:          function (parser) {
 
-            var last_view;
+            var Sub_View = [ ];
 
-            var iSearcher = this.$_View.treeWalker(1,  (function (iDOM) {
+            var iSearcher = this.$_View.treeWalker((function (node) {
 
                     var iView;
 
-                    last_view = (last_view  &&  $.contains(last_view, iDOM))  ?
-                        last_view : null;
+                    if ((this.$_View[0] !== node)  &&  (node.nodeType === 1)) {
 
-                    if ((this.$_View[0] !== iDOM)  &&  (! last_view)) {
+                        if ( node.dataset.href ) {
 
-                        if ( iDOM.dataset.href ) {
+                            parser.call(this, node);
 
-                            parser.call(this, iDOM);
-
-                            iView = View.getSub( iDOM );
+                            iView = View.getSub( node );
 
                             if (this.__child__.indexOf( iView )  <  0)
                                 this.__child__.push( iView );
 
-                            last_view = iDOM;  iDOM = iView;
+                            return null;
 
                         } else if (
-                            iDOM.dataset.name  ||
-                            (iView = View.instanceOf(iDOM, false))
+                            node.dataset.name  ||
+                            (iView = View.instanceOf(node, false))
                         ) {
-                            parser.call(this, iDOM);
+                            parser.call(this, node);
 
-                            iView = iView  ||  View.getSub(iDOM, this.__base__);
+                            if (! iView)
+                                iView = View.getSub(node,  null,  this.__base__);
 
-                            last_view = iDOM;
+                            Sub_View.push(iView.parse ? iView.parse() : iView);
 
-                            iDOM = iView.parse ? iView.parse() : iView;
+                            return null;
 
                         } else if (
-                            (iDOM.parentNode == document.head)  &&
-                            (iDOM.tagName.toLowerCase() != 'title')
+                            (node.parentNode == document.head)  &&
+                            (node.tagName.toLowerCase() != 'title')
                         )
                             return null;
                     }
 
-                    return  parser.call(this, iDOM, last_view);
+                    return  parser.call(this, node);
 
                 }).bind( this ));
 
             while (! iSearcher.next().done)  ;
+
+            for (var i = 0;  Sub_View[i];  i++)
+                parser.call(this, Sub_View[i]);
 
             this.__parse__ = $.now();
 
@@ -1085,25 +1117,34 @@ var view_View = (function ($, Observer, DataScope, RenderNode) {
         /**
          * 视图对象 属性监视
          *
-         * @author   TechQuery
+         * @author TechQuery
          *
          * @memberof View.prototype
          *
-         * @param    {string} key       - Property Key
-         * @param    {object} [get_set] - Getter & Setter
+         * @param {string} key       - Property Key
+         * @param {object} [get_set] - Getter & Setter
          *
-         * @returns  {View}   Current View
+         * @returns {View}  Current View
+         *
+         * @throws {ReferenceError}  When Prototype key or Array index
+         *                           is overwritten
          */
         watch:         function (key, get_set) {
+            if (
+                (key  in  Object.getPrototypeOf( this ))  ||
+                ((typeof this.length === 'number')  &&  $.isNumeric( key ))
+            )
+                throw ReferenceError(
+                    'Inner Property "' + key + '" can\'t be overwritten.'
+                );
 
-            if (! (key in Object.getPrototypeOf( this )))
-                this.setPublic(key, get_set, {
-                    get:    function () {
+            this.setPublic(key, get_set, {
+                get:    function () {
 
-                        return  this.__data__[key];
-                    },
-                    set:    this.render.bind(this, key)
-                });
+                    return  this.__data__[key];
+                },
+                set:    this.render.bind(this, key)
+            });
 
             return this;
         },
@@ -1119,6 +1160,22 @@ var view_View = (function ($, Observer, DataScope, RenderNode) {
         valueOf:       function () {
 
             return  this.__data__.valueOf();
+        },
+        /**
+         * 清空视图
+         *
+         * @author TechQuery
+         *
+         * @return {View}  Current View
+         */
+        clear:         function () {
+
+            var data = this.valueOf(), _data_ = { };
+
+            for (var key in data)
+                if (! (data[key] instanceof Function))  _data_[key] = '';
+
+            return  this.render(_data_);
         },
         /**
          * 获取子组件
@@ -1152,40 +1209,84 @@ var view_DOMkit = (function ($, RenderNode, InnerLink) {
     var Invalid_Style = $.makeSet('inherit', 'initial'),
         URL_Prefix = $.makeSet('?', '#');
 
+    function mapStyle(style, filter) {
+
+        var context = this, key_value = { };
+
+        $.each(style,  function () {
+
+            var value = style.getPropertyValue( this ), _value_,
+                priority = style.getPropertyPriority( this );
+
+            if ( filter ) {
+
+                if (null  !=  (_value_ = filter.call(
+                    context,  value,  this + '',  priority,  style
+                )))
+                    value = _value_;
+                else
+                    return;
+            }
+
+            if ( priority )  value += ' !' + priority;
+
+            if (! (value in Invalid_Style))  key_value[ this ] = value;
+        });
+
+        return  key_value;
+    }
+
+    function pathToRoot(base, path) {
+
+        return (
+            !(path[0] in URL_Prefix)  &&  path.replace(RenderNode.expression, '')
+        )  &&
+            decodeURI(
+                new URL(path,  new URL(base, self.location))
+            ).replace(
+                $.filePath(), ''
+            );
+    }
+
+    function fixCSSURL(base, value) {
+
+        return  value.replace(
+            /\s?url\(\s*(?:'|")(\S+)(?:'|")\)/g,
+            function (_, path) {
+
+                return  'url("'  +  (pathToRoot(base, path) || path)  +  '")';
+            }
+        );
+    }
 
     return {
-        cssRule:      function cssRule(sheet) {
+        cssRule:      function cssRule(sheet, mapFilter) {
+
+            mapFilter = (mapFilter instanceof Function)  &&  mapFilter;
 
             var rule = { };
 
             $.each(sheet.cssRules,  function () {
 
                 if ( this.cssRules )
-                    return (
-                        rule[ this.cssText.split( /\s*\{/ )[0] ] = cssRule( this )
-                    );
-
-                var _rule_ = rule[this.selectorText || this.keyText] = { };
-
-                for (var i = 0, value, priority;  this.style[i];  i++) {
-
-                    value = this.style.getPropertyValue( this.style[i] );
-
-                    if (priority = this.style.getPropertyPriority( this.style[i] ))
-                        value += ' !' + priority;
-
-                    if (! (value in Invalid_Style))
-                        _rule_[ this.style[i] ] = value;
-                }
+                    rule[ this.cssText.split( /\s*\{/ )[0] ] =
+                        cssRule(this, mapFilter);
+                else
+                    rule[this.selectorText || this.keyText] =
+                        mapStyle.call(sheet, this.style, mapFilter);
             });
 
             return rule;
         },
-        fixStyle:     function ($_Root, iDOM) {
+        fixStyle:     function ($_Root, iDOM, base) {
 
             if ( iDOM.classList.contains('iQuery_CSS-Rule') )  return iDOM;
 
-            var rule = this.cssRule( iDOM.sheet );    iDOM = [ ];
+            var rule = this.cssRule(
+                    iDOM.sheet,  base && fixCSSURL.bind(null, base)
+                );
+
+            iDOM = [ ];
 
             $.each(rule,  function (selector) {
 
@@ -1222,7 +1323,29 @@ var view_DOMkit = (function ($, RenderNode, InnerLink) {
 
             return iDOM;
         },
+        loadCSS:      function ($_View, linkDOM, base) {
+
+            var path = pathToRoot(base, linkDOM.getAttribute('href')),
+                _this_ = this,
+                $_Style = $('<style disabled />');
+
+            $.get( path ).then(function (CSS) {
+
+                $_Style[0].textContent = CSS;
+
+                $_Style.replaceWith( _this_.fixStyle($_View, $_Style[0], path) );
+
+            },  function () {
+
+                linkDOM.href = path;
+
+                $_Style.replaceWith( linkDOM );
+            });
+
+            return $_Style[0];
+        },
         fixScript:    function (iDOM) {
+
             var iAttr = { };
 
             $.each(iDOM.attributes,  function () {
@@ -1230,58 +1353,50 @@ var view_DOMkit = (function ($, RenderNode, InnerLink) {
                 iAttr[ this.nodeName ] = this.nodeValue;
             });
 
-            iDOM = $('<script />', iAttr).prop('text', iDOM.text)[0];
-
-            return iDOM;
+            return  $('<script />', iAttr).prop('text', iDOM.text)[0];
         },
-        fixURL:       function (tag, node, base) {
+        fixURL:       function (base) {
 
-            var key, URI;  base = new URL(base, self.location);
+            var key, URI, $_This = $( this );
 
-            if (! $( node ).parents('[slot]')[0])
-                switch ( tag ) {
-                    case 'a':         ;
-                    case 'area':      ;
-                    case 'link':      key = 'href';
-                    case 'form':      key = key || 'action';
-                    case 'img':       ;
-                    case 'iframe':    ;
-                    case 'audio':     ;
-                    case 'video':     ;
-                    case 'script':    key = key || 'src';
-                    default:          {
-                        key = key || 'data-href';
+            if (this.style.cssText.indexOf('url(') > 0)
+                $_This.css( mapStyle(this.style,  fixCSSURL.bind(null, base)) );
 
-                        if (! (URI = node.getAttribute( key )))  break;
+            switch ( this.tagName.toLowerCase() ) {
+                case 'a':         ;
+                case 'area':      key = 'href';
+                case 'form':      key = key || 'action';
+                case 'img':       ;
+                case 'iframe':    ;
+                case 'audio':     ;
+                case 'video':     ;
+                case 'script':    key = key || 'src';
+                default:          {
+                    key = key || 'data-href';
 
-                        if (
-                            ('target' in node)  &&
-                            (node.target !== '_self')  &&
-                            $.isXDomain( URI )
-                        ) {
-                            node.target = '_blank';
+                    if (! (URI = this.getAttribute( key )))  break;
 
-                        } else if (
-                            !(URI[0] in URL_Prefix)  &&
-                            URI.replace(RenderNode.expression, '')
-                        ) {
-                            node.setAttribute(
-                                key,
-                                decodeURI(new URL(URI, base)).replace(
-                                    $.filePath() + '/',  ''
-                                )
-                            );
+                    if (
+                        ('target' in this)  &&
+                        (this.target !== '_self')  &&
+                        $.isXDomain( URI )
+                    )
+                        return  this.target = '_blank';
 
-                            if ($( node ).is(
-                                InnerLink.HTML_Link + ', ' + InnerLink.Self_Link
-                            ))
-                                new InnerLink( node );
-                        }
-                    }
+                    if (URI = pathToRoot(base, URI))
+                        this.setAttribute(key, URI);
+
+                    if ($_This.is(
+                        InnerLink.HTML_Link + ', ' + InnerLink.Self_Link
+                    ))
+                        new InnerLink( this );
                 }
-
-            return node;
-        }
+            }
+        },
+        URL_DOM:      [
+            'a', 'area', 'form', 'img', 'iframe', 'audio', 'video', 'script',
+            '[style]', '[data-href]'
+        ].join(', ')
     };
 })(jquery, view_RenderNode, InnerLink);
 
@@ -1348,139 +1463,161 @@ var view_HTMLView = (function ($, View, DOMkit, RenderNode) {
         }
     }, {
         indexOf:       Array.prototype.indexOf,
-        signIn:        function (iNode) {
+        signIn:        function (node) {
 
-            for (var i = 0;  this[i];  i++)  if (this[i] == iNode)  return;
+            for (var i = 0;  this[i];  i++)  if (this[i] == node)  return;
 
-            this[this.length++] = iNode;
+            this[this.length++] = node;
 
-            var iName = (iNode instanceof RenderNode)  ?
-                    iNode  :  [iNode.__name__];
+            var name = (node instanceof RenderNode)  ?
+                    node  :  [node.__name__];
 
-            for (var j = 0;  iName[j];  j++)
-                this.watch( iName[j] ).__map__[iName[j]] =
-                    (this.__map__[iName[j]] || 0)  +  Math.pow(2, i);
+            for (var j = 0;  name[j];  j++)  try {
+
+                this.watch( name[j] ).__map__[name[j]] =
+                    (this.__map__[name[j]] || 0)  +  Math.pow(2, i);
+
+            } catch (error) {
+
+                console.warn( error );
+            }
         },
-        parsePlain:    function (iDOM) {
+        parsePlain:    function (node) {
 
-            Array.from(
-                Array.prototype.concat.apply(
-                    $.makeArray( iDOM.attributes ),  iDOM.childNodes
-                ),
-                function (node) {
-                    if (
-                        node.nodeValue  &&
-                        (node.nodeType in RenderNode.Template_Type)
-                    ) {
-                        node = new RenderNode( node );
+            if (! (node.nodeValue || node.value))  return;
 
-                        if ( node.type )  this.signIn( node );
+            var render = new RenderNode( node );
+
+            if (! render.type)  return;
+
+            this.signIn( render );
+
+            if (node.nodeType === 8) {
+
+                render.ownerNode = node =
+                    document.createTextNode( node.nodeValue );
+
+                render.DOMType = 'Text';
+            }
+
+            return node;
+        },
+        parseNode:     function (type, node) {
+
+            if ((node instanceof View)  &&  (this.indexOf( node )  <  0))
+                return  this.signIn( node );
+
+            switch ($.Type( node )) {
+                case 'Text':           ;
+                case 'Comment':
+                    return  this.parsePlain( node );
+                case 'HTMLElement':
+                    if (type in HTMLView.rawSelector)
+                        return null;
+                    else
+                        Array.from(
+                            $.makeArray( node.attributes ),
+                            this.parsePlain,
+                            this
+                        );
+            }
+        },
+        parseVM:       function () {
+
+            return  this.scan(function (node) {
+
+                var $_View = this.$_View,
+                    type = (node.nodeName || '').toLowerCase();
+
+                if ((node instanceof Node)  &&  (node !== $_View[0]))
+                    switch ( type ) {
+                        case 'style':
+                            return  DOMkit.fixStyle($_View, node);
+                        case 'link':
+                            return  DOMkit.loadCSS($_View, node, this.__base__);
+                        case 'script':
+                            return  DOMkit.fixScript( node );
                     }
-                },
-                this
+
+                return  this.parseNode(type, node);
+            });
+        },
+        fixLink:       function () {
+
+            if (! this.__base__)  return;
+
+            var $_Link = this.$_View.find('*');
+
+            if (! this.$_View[0].parentElement)  $_Link = $_Link.addBack();
+
+            $_Link.filter( DOMkit.URL_DOM ).not('head > *').each(
+                $.proxy(DOMkit.fixURL, null, this.__base__)
             );
+        },
+        parseSlot:     function () {
+
+            var _this_ = this, $_Slot = $();
+
+            this.$_View.find('slot').replaceWith(function () {
+
+                var slot = this.getAttribute('name');
+
+                slot = _this_.$_Slot.filter(
+                    slot  ?
+                        ('[slot="' + slot + '"]')  :
+                        function () {
+                            return  this.getAttribute &&
+                                (! this.getAttribute('slot'));
+                        }
+                );
+
+                return  slot[0]  ?
+                    ($.merge($_Slot, slot)  &&  slot)  :  $( this ).contents();
+            });
+
+            this.$_Slot = $_Slot;
+        },
+        parseHTML:     function (template) {
+
+            var fresh;
+
+            if (template = (template || '').trim()) {
+
+                if ( this.$_View[0].innerHTML.trim() )
+                    this.$_Slot = this.$_View.contents().detach();
+
+                if (fresh  =  (! this.$_View[0].innerHTML.trim()))
+                    this.$_View[0].innerHTML = template;
+            }
+
+            this.$_View.children('template').replaceWith(function () {
+
+                return  $( this ).contents();
+            });
+
+            if ( fresh ) {
+
+                this.fixLink();
+
+                this.parseSlot();
+            }
 
             return this;
-        },
-        fixElement:    function (tag, node, last_slot) {
-
-            var $_View = this.$_View, base = this.__base__, $_Slot;
-
-            switch ( tag ) {
-                case 'style':       return  DOMkit.fixStyle($_View, node);
-                case 'link':        {
-
-                    DOMkit.fixURL(tag, node, base).onload = function () {
-
-                        $( this ).replaceWith(
-                            DOMkit.fixStyle($_View, this)
-                        );
-                    };
-                    return true;
-                }
-                case 'script':
-                    return  DOMkit.fixURL(tag, DOMkit.fixScript( node ), base);
-                case 'slot':        {
-                    $_Slot = this.$_Slot.filter(
-                        ($_Slot = node.getAttribute('name'))  ?
-                            ('[slot="' + $_Slot + '"]')  :
-                            function () {
-                                return  this.getAttribute &&
-                                    (! this.getAttribute('slot'));
-                            }
-                    );
-
-                    if ( $_Slot[0] )  return $_Slot;
-                }
-                case 'template':
-                    return  $( node ).contents();
-                default:
-                    if (
-                        (! last_slot)  ||
-                        this.$_Slot.has( last_slot )[0]  ||
-                        (! $.contains(last_slot, node))
-                    )
-                        DOMkit.fixURL(tag, node, base);
-            }
         },
         /**
          * HTML 模板解析
          *
-         * @author   TechQuery
+         * @author TechQuery
          *
          * @memberof HTMLView.prototype
          *
-         * @param    {string}   [template] - A HTML String of the Component's template
-         *                                   with HTMLSlotElement
-         * @returns  {HTMLView} Current HTMLView
+         * @param {string} [template] - A HTML String of the Component's template
+         *                              with HTMLSlotElement
+         * @return {HTMLView}  Current HTMLView
          */
         parse:         function (template) {
 
-            if (this.__parse__)  return this;
-
-            if (template = (template || '').trim()) {
-
-                this.$_Slot = this.$_View.contents().remove().attr(
-                    'slot',  function () {
-
-                        return  arguments[1] || '';
-                    }
-                );
-
-                this.$_View[0].innerHTML = template;
-            }
-
-            var last_slot;
-
-            this.scan(function (node, last_view) {
-
-                var tag = (node.tagName || '').toLowerCase(), newDOM;
-
-                last_slot = (last_slot  &&  $.contains(last_slot, node))  ?
-                    last_slot : null;
-
-                if ((node instanceof Element)  &&  (node !== this.$_View[0])) {
-
-                    if ( node.hasAttribute('slot') )  last_slot = node;
-
-                    newDOM = this.fixElement(tag, node, last_slot);
-
-                    if ((newDOM === true)  ||  last_view)  return;
-
-                    if ( newDOM )  return newDOM;
-                }
-
-                if (node instanceof View) {
-
-                    if (this.indexOf( node )  <  0)  this.signIn( node );
-
-                } else if ( !(tag in HTMLView.rawSelector))
-                    this.parsePlain( node );
-            });
-
-            this.$_Slot = this.$_Slot.filter( this.$_View.find('[slot]') );
-
-            return this;
+            return  this.parseHTML( template ).parseVM();
         },
         nodeOf:        function (data, exclude, forEach) {
 
@@ -1553,8 +1690,7 @@ var view_HTMLView = (function ($, View, DOMkit, RenderNode) {
                     node.render(_Data_[node.__name__]);
 
                     _Data_[node.__name__] = node.__data__;
-                } else
-                    node.innerHTML = _Data_[ node.getAttribute('name') ];
+                }
             });
 
             return this;
@@ -1565,9 +1701,9 @@ var view_HTMLView = (function ($, View, DOMkit, RenderNode) {
 
     function reRender() {
 
-        var iView = HTMLView.instanceOf( this );
+        var view = HTMLView.instanceOf( this );
 
-        if (iView  &&  $( this ).validate())  iView.render( this );
+        if ( view )  view.render( this );
     }
 
     $('html').on('change', ':field', reRender).on(
@@ -1586,7 +1722,7 @@ var view_HTMLView = (function ($, View, DOMkit, RenderNode) {
 })(jquery, view_View, view_DOMkit, view_RenderNode);
 
 
-var view_ListView = (function ($, View, HTMLView, InnerLink) {
+var view_ListView = (function ($, View, InnerLink) {
 
     /**
      * 迭代视图类（对应 JSON 数组）
@@ -1654,9 +1790,7 @@ var view_ListView = (function ($, View, HTMLView, InnerLink) {
          */
         insert:     function (data, index, delay) {
 
-            var Item = (
-                    new HTMLView(this.__HTML__, this.__data__, this.__base__)
-                ).parse();
+            var Item = View.getSub(this.__HTML__, this.__data__).parse();
 
             Item.$_View.find( InnerLink.HTML_Link ).addBack( InnerLink.HTML_Link )
                 .each(function () {
@@ -1766,12 +1900,19 @@ var view_ListView = (function ($, View, HTMLView, InnerLink) {
             }));
 
             return this;
+        },
+        valueOf:    function () {
+
+            return  $.each(this.__data__.valueOf(),  function () {
+
+                delete  this.__index__;
+            });
         }
     });
 
     return ListView;
 
-})(jquery, view_View, view_HTMLView, InnerLink);
+})(jquery, view_View, InnerLink);
 
 
 var view_TreeView = (function ($, ListView) {
@@ -1872,7 +2013,7 @@ var WebApp = (function ($, Observer, View, HTMLView, ListView, TreeView, DOMkit,
 
         if (_This_ !== this)  return _This_;
 
-        Observer.call(this, Page_Box).pageRoot = new URL($.filePath() + '/');
+        Observer.call(this, Page_Box).pageRoot = new URL( $.filePath() );
         /**
          * 后端 API 根路径
          *
@@ -1909,7 +2050,10 @@ var WebApp = (function ($, Observer, View, HTMLView, ListView, TreeView, DOMkit,
         splice:           Array.prototype.splice,
         getCID:           function () {
 
-            return  (arguments[0] + '').replace(this.pageRoot, '').split('#')[0];
+            return  (arguments[0] + '')
+                .replace(this.pageRoot, '')
+                .replace($.filePath( document.baseURI ),  '')
+                .split('#')[0];
         },
         /**
          * 明文显示当前 SPA 内页的路由 URI
@@ -2013,7 +2157,7 @@ var WebApp = (function ($, Observer, View, HTMLView, ListView, TreeView, DOMkit,
                 ](
                     {index: this.length},
                     document.title = link.title,
-                    '#!'  +  self.btoa( this.getCID( link ) )
+                    this.pageRoot  +  '#!'  +  self.btoa( this.getCID( link ) )
                 );
 
                 this.emitRoute( this[ this.length++ ] = link );
@@ -2037,9 +2181,11 @@ var WebApp = (function ($, Observer, View, HTMLView, ListView, TreeView, DOMkit,
 
             HTML = this._emit('template', link, HTML);
 
-            var view = View.getSub(target, link.href);
+            var view = View.getSub(target, null, link.href);
 
             if ( view.parse )  view.parse( HTML );
+
+            view.$_View.addClass('parsed');
 
             if (! $('script:not(head > *)', target)[0])
                 link.emit('load');
@@ -2048,9 +2194,13 @@ var WebApp = (function ($, Observer, View, HTMLView, ListView, TreeView, DOMkit,
         },
         loadChild:        function (view) {
 
+            view.$_View.addClass('rendered');
+
             return Promise.all($.map(
                 view.childOf(':visible'),  this.load.bind( this )
             )).then(function () {
+
+                view.$_View.addClass('loaded');
 
                 return view;
             });
@@ -2105,6 +2255,8 @@ var WebApp = (function ($, Observer, View, HTMLView, ListView, TreeView, DOMkit,
                 link = new InnerLink(
                     (link instanceof Observer)  ?  link.$_View[0]  :  link
                 );
+
+            link.$_View.removeClass('parsed rendered loaded');
 
             var _This_ = this;
 
@@ -2245,10 +2397,36 @@ var WebApp = (function ($, Observer, View, HTMLView, ListView, TreeView, DOMkit,
 
             return this;
         },
+        prefetch:         function (view) {
+
+            var list = Object.keys($.makeSet.apply($, $.map(
+                    view.$_View.find( InnerLink.HTML_Link ),
+                    function (link) {
+
+                        link = (link.getAttribute('href') || '').split( /\?|\#/ )[0];
+
+                        return  (link  &&  (! $.isXDomain(link)))  ?  link  :  null;
+                    }
+                )));
+
+            /**
+             * 页面预加载事件
+             *
+             * @event WebApp#prefetch
+             */
+            if ( list[0] )  this.emit('prefetch', list);
+
+            return this;
+        },
         boot:             function () {
 
             var root = (new HTMLView('html')).parse().render( $.paramJSON() ),
                 _This_ = this;
+
+            this.prefetch( root ).on('ready',  function () {
+
+                this.prefetch( arguments[1] );
+            });
 
             return  this[root.$_View[0].dataset.href ? 'load' : 'loadChild'](
                 root
@@ -2269,14 +2447,14 @@ var WebApp = (function ($, Observer, View, HTMLView, ListView, TreeView, DOMkit,
  *
  * @module    {function} WebApp
  *
- * @version   4.0 (2017-11-16) stable
+ * @version   4.0 (2018-01-24) stable
  *
  * @requires  jquery
  * @see       {@link http://jquery.com/ jQuery}
  * @requires  jQueryKit
  * @see       {@link https://techquery.github.io/iQuery.js iQuery}
  *
- * @copyright TechQuery <shiy2008@gmail.com> 2015-2017
+ * @copyright TechQuery <shiy2008@gmail.com> 2015-2018
  */
 
 return  (function ($, WebApp, InnerLink) {
@@ -2412,7 +2590,7 @@ return  (function ($, WebApp, InnerLink) {
                         data:     key
                     },
                     document.title,
-                    '#!' + self.btoa(
+                    this.pageRoot + '#!' + self.btoa(
                         $.extendURL(URL[0], key)  +  (
                             URL[1]  ?  ('&data=' + URL[1])  :  ''
                         )
